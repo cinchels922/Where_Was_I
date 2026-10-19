@@ -1,1 +1,179 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#6753a5"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Where Was I?"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon.png"><title>Where Was I?</title><style>:root{font-family:system-ui,-apple-system,sans-serif;color:#342653;background:#f2effa}*{box-sizing:border-box}body{margin:0}main{max-width:550px;margin:auto;padding:22px 18px 60px}header{display:flex;align-items:center;gap:12px;margin-bottom:24px}.logo{background:#6753a5;color:white;padding:12px;border-radius:15px;font-size:25px}h1{font-size:21px;margin:0}small,.muted{color:#766b88}h2{font-size:21px;margin:0 0 8px}.card{background:white;border-radius:20px;padding:20px;margin:14px 0;box-shadow:0 2px 12px #4834770d}label{font-weight:650;display:block;margin:14px 0 6px}textarea,input{font:inherit;border:1px solid #d7d0e5;border-radius:12px;padding:12px;width:100%;background:#fff;min-height:44px}textarea{min-height:105px;resize:vertical}button{font:inherit;cursor:pointer;border:0;border-radius:12px;padding:13px 16px;font-weight:650;background:#6753a5;color:white}button.secondary{background:#eee9f8;color:#51417d}button.danger{background:#fff0f0;color:#a42b40}button:disabled{opacity:.45}.buttons{display:flex;gap:8px;flex-wrap:wrap}.buttons>*{flex:1}#projects .card{margin:10px 0}.pill{font-size:12px;color:#6753a5;font-weight:700;text-transform:uppercase;letter-spacing:.07em}.hidden{display:none}.notice{padding:12px;background:#e4f4ea;border-radius:12px;color:#245d41;margin-top:12px}.hint{font-size:13px;line-height:1.5}.step{background:#f5f1fb;border-radius:12px;padding:12px;white-space:pre-wrap;overflow-wrap:anywhere}.project-title{margin:7px 0}.footer{font-size:12px;color:#766b88;line-height:1.5;margin-top:20px}a{color:#51417d}</style></head><body><main><header><div class="logo">↩</div><div><h1>WHERE WAS I?</h1><small>Your goals deserve a comeback.</small></div></header><section class="card"><h2>Leave yourself a breadcrumb.</h2><p class="muted">Tap the note box, use the microphone on your iPhone keyboard, and talk naturally.</p><label for="capture">What happened?</label><textarea id="capture" placeholder="I was working on my resume. I finished the education section, but next I need to update my experience..."></textarea><div class="buttons" style="margin-top:12px"><button id="organize">Organize my thoughts</button></div><p class="hint muted">Use your keyboard's dictation microphone. This free version does not record audio or send your notes to an AI service.</p></section><section id="review" class="card hidden"><h2>Does this look right?</h2><p class="muted">These are suggestions, not guesses you have to accept.</p><label for="project">Project name</label><input id="project" placeholder="e.g. Update my resume"><label for="next">Next tiny step</label><textarea id="next"></textarea><label for="context">Where I left off</label><textarea id="context"></textarea><div class="buttons" style="margin-top:14px"><button id="save">Save my place</button><button id="cancel" class="secondary">Cancel</button></div></section><section><h2>Ready when you are</h2><p class="muted">No streaks. No catching up. Just the next step.</p><div id="projects"></div></section><section class="card"><h2>Your backup</h2><p class="hint muted">Your notes stay in this browser on this device. They may disappear if browser data is cleared or you change devices. Export a backup regularly.</p><div class="buttons"><button id="export" class="secondary">Export backup</button><button id="importButton" class="secondary">Import backup</button></div><input id="importFile" class="hidden" type="file" accept="application/json,.json"><div id="message" aria-live="polite"></div></section><p class="footer">This is an experimental organizer, not a medical tool. Automatic suggestions use simple phrase matching and may be inaccurate. Avoid entering sensitive information you wouldn't want stored on this device.</p></main><script>const KEY='wwi-projects-v1';let items=[];let editing=null;const $=id=>document.getElementById(id);function load(){try{const v=JSON.parse(localStorage.getItem(KEY)||'[]');items=Array.isArray(v)?v:[]}catch{items=[]}}function persist(){try{localStorage.setItem(KEY,JSON.stringify(items));return true}catch{message('Unable to save. Check browser storage or export a backup.');return false}}function message(t){$('message').textContent=t;$('message').className='notice'}function textNode(tag,text,cls){const n=document.createElement(tag);n.textContent=text;if(cls)n.className=cls;return n}function render(){$('projects').replaceChildren();if(!items.length){$('projects').append(textNode('p','Nothing saved yet. Your first breadcrumb will appear here.','muted'));return}items.slice().reverse().forEach(item=>{const card=document.createElement('article');card.className='card';card.append(textNode('div','YOUR PROJECT','pill'),textNode('h3',item.name,'project-title'),textNode('div','NEXT TINY STEP','pill'),textNode('p',item.next||'Decide on one small action.'));const details=document.createElement('details');details.append(textNode('summary','Where I left off'));details.append(textNode('p',item.context||'No additional notes.','step'));card.append(details);const actions=document.createElement('div');actions.className='buttons';actions.style.marginTop='14px';const edit=textNode('button','Update breadcrumb','secondary');edit.onclick=()=>{editing=item.id;$('project').value=item.name;$('next').value=item.next;$('context').value=item.context;$('capture').value='';$('review').classList.remove('hidden');$('review').scrollIntoView({behavior:'smooth'})};const done=textNode('button','Mark complete','secondary');done.onclick=()=>{if(confirm('Mark this project complete and remove it from your active list?')){items=items.filter(x=>x.id!==item.id);persist();render()}};actions.append(edit,done);card.append(actions);$('projects').append(card)})}function extract(raw){const sentences=raw.split(/(?<=[.!?])\s+|\n+/).map(s=>s.trim()).filter(Boolean);const next=sentences.find(s=>/\b(still need to|next i need to|need to|have to|next step|should|going to|must|want to)\b/i.test(s))||'';const match=raw.match(/(?:working on|working toward|trying to|project is|goal is)\s+(.{3,70}?)(?:[,.!?]|\s+(?:but|and then|because|when)\b|$)/i);const project=match?match[1].trim():'';return {project,next,context:raw}}$('organize').onclick=()=>{const raw=$('capture').value.trim();if(!raw){message('Say or type a quick note first.');return}editing=null;const data=extract(raw);$('project').value=data.project;$('next').value=data.next;$('context').value=data.context;$('review').classList.remove('hidden');$('review').scrollIntoView({behavior:'smooth'})};$('cancel').onclick=()=>{$('review').classList.add('hidden');editing=null};$('save').onclick=()=>{const name=$('project').value.trim(),next=$('next').value.trim(),context=$('context').value.trim();if(!name){message('Give this project a name before saving.');return}if(editing){items=items.map(x=>x.id===editing?{...x,name,next,context,updated:Date.now()}:x)}else{const existing=items.find(x=>x.name.toLowerCase()===name.toLowerCase());if(existing){if(!confirm('A project with this name exists. Replace its breadcrumb?'))return;items=items.map(x=>x.id===existing.id?{...x,name,next,context,updated:Date.now()}:x)}else{items.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),name,next,context,updated:Date.now()})}}if(persist()){editing=null;$('capture').value='';$('review').classList.add('hidden');render();message('Saved on this device. You can return whenever you like.')}};$('export').onclick=()=>{const blob=new Blob([JSON.stringify({format:'where-was-i-v1',projects:items},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='where-was-i-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};$('importButton').onclick=()=>$('importFile').click();$('importFile').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{const data=JSON.parse(await file.text());if(data.format!=='where-was-i-v1'||!Array.isArray(data.projects)||!data.projects.every(x=>typeof x.id==='string'&&typeof x.name==='string'&&typeof x.next==='string'&&typeof x.context==='string'))throw Error('Invalid backup');if(!confirm('Replace all current projects with this backup?'))return;items=data.projects.map(x=>({id:x.id,name:x.name,next:x.next,context:x.context,updated:Number(x.updated)||Date.now()}));persist();render();message('Backup imported.')}catch{message('That file is not a valid WHERE WAS I? backup.')}finally{e.target.value=''}};load();render();if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#6753a5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Where Was I?">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon.png">
+<title>Where Was I?</title>
+<style>
+:root{font-family:system-ui,-apple-system,sans-serif;color:#342653;background:#f2effa}
+*{box-sizing:border-box}body{margin:0}
+main{max-width:550px;margin:auto;padding:22px 18px 60px}
+header{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+.logo{background:#6753a5;color:white;padding:12px;border-radius:15px;font-size:25px}
+h1{font-size:21px;margin:0}small,.muted{color:#766b88}
+h2{font-size:21px;margin:0 0 8px}
+.card{background:white;border-radius:20px;padding:20px;margin:14px 0;box-shadow:0 2px 12px #4834770d}
+label{font-weight:650;display:block;margin:14px 0 6px}
+textarea,input{font:inherit;border:1px solid #d7d0e5;border-radius:12px;padding:12px;width:100%;background:#fff;min-height:44px}
+textarea{min-height:105px;resize:vertical}
+button{font:inherit;cursor:pointer;border:0;border-radius:12px;padding:13px 16px;font-weight:650;background:#6753a5;color:white}
+button.secondary{background:#eee9f8;color:#51417d}
+button:disabled{opacity:.45}
+.buttons{display:flex;gap:8px;flex-wrap:wrap}.buttons>*{flex:1}
+#projects .card{margin:10px 0}
+.pill{font-size:12px;color:#6753a5;font-weight:700;text-transform:uppercase;letter-spacing:.07em}
+.hidden{display:none}.notice{padding:12px;background:#e4f4ea;border-radius:12px;color:#245d41;margin-top:12px}
+.hint{font-size:13px;line-height:1.5}.step{background:#f5f1fb;border-radius:12px;padding:12px;white-space:pre-wrap;overflow-wrap:anywhere}
+.project-title{margin:7px 0}.footer{font-size:12px;color:#766b88;line-height:1.5;margin-top:20px}
+#mic{display:block;width:112px;height:112px;margin:16px auto 8px;border-radius:50%;font-size:48px;box-shadow:0 5px 18px #6753a540;touch-action:manipulation}
+#mic.listening{background:#b83268;animation:pulse 1.3s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 14px #b8326830}}
+#voiceStatus{text-align:center;min-height:24px}
+a{color:#51417d}
+</style>
+</head>
+<body>
+<main>
+<header><div class="logo">↩</div><div><h1>WHERE WAS I?</h1><small>Your goals deserve a comeback.</small></div></header>
+<section class="card">
+<h2>Leave yourself a breadcrumb.</h2>
+<p class="muted">Tap the big microphone to talk, or type your thoughts below.</p>
+<label for="capture">What happened?</label>
+<textarea id="capture" placeholder="I was working on my resume. I finished the education section, but next I need to update my experience..."></textarea>
+<button id="mic" type="button" aria-label="Start voice capture" aria-pressed="false">🎙️</button>
+<p id="voiceStatus" class="hint muted" role="status" aria-live="polite">Tap to start speaking.</p>
+<div class="buttons" style="margin-top:12px"><button id="organize">Organize my thoughts</button></div>
+<p class="hint muted">Voice capture depends on browser support and may use your device's speech recognition service. If unavailable, use your keyboard's dictation microphone. Your saved project notes remain on this device.</p>
+</section>
+<section id="review" class="card hidden">
+<h2>Does this look right?</h2><p class="muted">These are suggestions, not guesses you have to accept.</p>
+<label for="project">Project name</label><input id="project" placeholder="e.g. Update my resume">
+<label for="next">Next tiny step</label><textarea id="next"></textarea>
+<label for="context">Where I left off</label><textarea id="context"></textarea>
+<div class="buttons" style="margin-top:14px"><button id="save">Save my place</button><button id="cancel" class="secondary">Cancel</button></div>
+</section>
+<section><h2>Ready when you are</h2><p class="muted">No streaks. No catching up. Just the next step.</p><div id="projects"></div></section>
+<section class="card">
+<h2>Your backup</h2><p class="hint muted">Your notes stay in this browser on this device. They may disappear if browser data is cleared or you change devices. Export a backup regularly.</p>
+<div class="buttons"><button id="export" class="secondary">Export backup</button><button id="importButton" class="secondary">Import backup</button></div>
+<input id="importFile" class="hidden" type="file" accept="application/json,.json">
+<div id="message" aria-live="polite"></div>
+</section>
+<p class="footer">This is an experimental organizer, not a medical tool. Automatic suggestions use simple phrase matching and may be inaccurate. Avoid entering sensitive information you wouldn't want stored on this device.</p>
+</main>
+<script>
+const KEY='wwi-projects-v1';
+let items=[],editing=null;
+const $=id=>document.getElementById(id);
+function load(){try{const v=JSON.parse(localStorage.getItem(KEY)||'[]');items=Array.isArray(v)?v:[]}catch{items=[]}}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(items));return true}catch{message('Unable to save. Check browser storage or export a backup.');return false}}
+function message(t){$('message').textContent=t;$('message').className='notice'}
+function textNode(tag,text,cls){const n=document.createElement(tag);n.textContent=text;if(cls)n.className=cls;return n}
+function render(){
+ $('projects').replaceChildren();
+ if(!items.length){$('projects').append(textNode('p','Nothing saved yet. Your first breadcrumb will appear here.','muted'));return}
+ items.slice().reverse().forEach(item=>{
+  const card=document.createElement('article');card.className='card';
+  card.append(textNode('div','YOUR PROJECT','pill'),textNode('h3',item.name,'project-title'),textNode('div','NEXT TINY STEP','pill'),textNode('p',item.next||'Decide on one small action.'));
+  const details=document.createElement('details');details.append(textNode('summary','Where I left off'));details.append(textNode('p',item.context||'No additional notes.','step'));card.append(details);
+  const actions=document.createElement('div');actions.className='buttons';actions.style.marginTop='14px';
+  const edit=textNode('button','Update breadcrumb','secondary');
+  edit.onclick=()=>{editing=item.id;$('project').value=item.name;$('next').value=item.next;$('context').value=item.context;$('capture').value='';$('review').classList.remove('hidden');$('review').scrollIntoView({behavior:'smooth'})};
+  const done=textNode('button','Mark complete','secondary');
+  done.onclick=()=>{if(confirm('Mark this project complete and remove it from your active list?')){items=items.filter(x=>x.id!==item.id);persist();render()}};
+  actions.append(edit,done);card.append(actions);$('projects').append(card);
+ });
+}
+function extract(raw){
+ const sentences=raw.split(/(?<=[.!?])\s+|\n+/).map(s=>s.trim()).filter(Boolean);
+ const next=sentences.find(s=>/\b(still need to|next i need to|need to|have to|next step|should|going to|must|want to)\b/i.test(s))||'';
+ const match=raw.match(/(?:working on|working toward|trying to|project is|goal is)\s+(.{3,70}?)(?:[,.!?]|\s+(?:but|and then|because|when)\b|$)/i);
+ return {project:match?match[1].trim():'',next,context:raw};
+}
+$('organize').onclick=()=>{
+ const raw=$('capture').value.trim();
+ if(!raw){message('Say or type a quick note first.');return}
+ editing=null;const data=extract(raw);
+ $('project').value=data.project;$('next').value=data.next;$('context').value=data.context;
+ $('review').classList.remove('hidden');$('review').scrollIntoView({behavior:'smooth'});
+};
+$('cancel').onclick=()=>{$('review').classList.add('hidden');editing=null};
+$('save').onclick=()=>{
+ const name=$('project').value.trim(),next=$('next').value.trim(),context=$('context').value.trim();
+ if(!name){message('Give this project a name before saving.');return}
+ if(editing){items=items.map(x=>x.id===editing?{...x,name,next,context,updated:Date.now()}:x)}
+ else{
+  const existing=items.find(x=>x.name.toLowerCase()===name.toLowerCase());
+  if(existing){if(!confirm('A project with this name exists. Replace its breadcrumb?'))return;items=items.map(x=>x.id===existing.id?{...x,name,next,context,updated:Date.now()}:x)}
+  else items.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),name,next,context,updated:Date.now()});
+ }
+ if(persist()){editing=null;$('capture').value='';$('review').classList.add('hidden');render();message('Saved on this device. You can return whenever you like.')}
+};
+$('export').onclick=()=>{
+ const blob=new Blob([JSON.stringify({format:'where-was-i-v1',projects:items},null,2)],{type:'application/json'});
+ const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='where-was-i-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+};
+$('importButton').onclick=()=>$('importFile').click();
+$('importFile').onchange=async e=>{
+ const file=e.target.files[0];if(!file)return;
+ try{
+  const data=JSON.parse(await file.text());
+  if(data.format!=='where-was-i-v1'||!Array.isArray(data.projects)||!data.projects.every(x=>typeof x.id==='string'&&typeof x.name==='string'&&typeof x.next==='string'&&typeof x.context==='string'))throw Error('Invalid backup');
+  if(!confirm('Replace all current projects with this backup?'))return;
+  items=data.projects.map(x=>({id:x.id,name:x.name,next:x.next,context:x.context,updated:Number(x.updated)||Date.now()}));
+  persist();render();message('Backup imported.');
+ }catch{message('That file is not a valid WHERE WAS I? backup.')}finally{e.target.value=''}
+};
+// Optional speech recognition, with manual dictation fallback.
+const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+const mic=$('mic'),voiceStatus=$('voiceStatus');
+let recognition=null,listening=false,startingText='',finalTranscript='';
+function setListening(on){
+ listening=on;mic.classList.toggle('listening',on);
+ mic.setAttribute('aria-pressed',String(on));
+ mic.setAttribute('aria-label',on?'Stop voice capture':'Start voice capture');
+ mic.textContent=on?'■':'🎙️';
+}
+if(SpeechRecognition){
+ recognition=new SpeechRecognition();
+ recognition.lang='en-US';recognition.continuous=true;recognition.interimResults=true;
+ recognition.onstart=()=>{setListening(true);voiceStatus.textContent='Listening… tap the button to stop.'};
+ recognition.onresult=e=>{
+  let interim='';
+  for(let i=e.resultIndex;i<e.results.length;i++){
+   const part=e.results[i][0].transcript;
+   if(e.results[i].isFinal)finalTranscript+=part+' ';
+   else interim+=part;
+  }
+  $('capture').value=startingText+finalTranscript+interim;
+ };
+ recognition.onerror=e=>{
+  setListening(false);
+  voiceStatus.textContent=e.error==='not-allowed'?'Microphone permission denied. You can still use keyboard dictation.':
+   e.error==='no-speech'?'No speech detected. Tap to try again.':
+   'Voice recognition unavailable ('+e.error+'). Use keyboard dictation.';
+ };
+ recognition.onend=()=>{setListening(false);if(voiceStatus.textContent.startsWith('Listening'))voiceStatus.textContent='Stopped. Review your words, then organize your thoughts.'};
+ mic.onclick=()=>{
+  if(listening){recognition.stop();setListening(false);voiceStatus.textContent='Stopping…';return}
+  startingText=$('capture').value.trim();if(startingText)startingText+='\n';
+  finalTranscript='';
+  try{voiceStatus.textContent='Starting microphone…';recognition.start()}
+  catch{setListening(false);voiceStatus.textContent='Could not start. Try keyboard dictation instead.'}
+ };
+}else{
+ mic.onclick=()=>{
+  voiceStatus.textContent='Direct voice recognition is not supported here. Tap the note box and use the iPhone keyboard microphone.';
+  $('capture').focus();
+ };
+}
+load();render();
+if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+</script>
+</body>
+</html>
